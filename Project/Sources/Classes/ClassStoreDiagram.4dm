@@ -1,7 +1,87 @@
 
-Class constructor($classStore : Object)
+Class constructor($classStore : Object; $start_with_root_class : Object)
 	// Initialize with a class store
 	This:C1470.cs:=$classStore
+	This:C1470.ignore:=New collection:C1472()
+	If ($start_with_root_class#Null:C1517)
+		This:C1470.ignore_all_but_this_class_hier($start_with_root_class)
+	End if 
+	
+	
+Function ignore_all_but_this_class_hier($root_class : Object)
+	var $full_class_list : Collection
+	$full_class_list:=New collection:C1472("Object")
+	
+	var $class_children_list : Object
+	$class_children_list:=New object:C1471
+	
+	var $class : Object
+	var $name; $parent_name : Text
+	For each ($name; This:C1470.cs)
+		$full_class_list.push($name)
+		$class:=This:C1470.cs[$name]
+		If ($class.superclass=Null:C1517)
+			continue
+		End if 
+		
+		$parent_name:=$class.superclass.name
+		If ($class_children_list[$parent_name]=Null:C1517)
+			$class_children_list[$parent_name]:=New collection:C1472()
+		End if 
+		$class_children_list[$parent_name].push($name)
+	End for each 
+	$full_class_list:=$full_class_list.distinct()  // use this to sort
+	
+	var $class_list : Collection
+	$class_list:=New collection:C1472($root_class.name)
+	
+	// find all the upstream classes
+	var $child_name : Text
+	$child_name:=$root_class.name
+	While ($child_name#"")
+		If (This:C1470.cs[$child_name].superclass#Null:C1517)
+			$class_list.push(This:C1470.cs[$child_name].superclass.name)
+			If (This:C1470.cs[$child_name].superclass#Null:C1517)  // get next parent
+				$child_name:=This:C1470.cs[$child_name].superclass.name
+			Else 
+				$child_name:=""
+			End if 
+		Else 
+			$child_name:=""
+		End if 
+	End while 
+	
+	
+	// find all the downstream classes
+	var $class_names_to_add : Collection
+	If ($class_children_list[$root_class.name]#Null:C1517)
+		$class_names_to_add:=$class_children_list[$root_class.name].copy()
+	Else 
+		$class_names_to_add:=New collection:C1472()
+	End if 
+	While ($class_names_to_add.length>0)
+		$parent_name:=$class_names_to_add.pop()
+		$class_list.push($parent_name)
+		If ($class_children_list[$parent_name]#Null:C1517)
+			$class_names_to_add.combine($class_children_list[$parent_name].copy())
+		End if 
+	End while 
+	$class_list:=$class_list.distinct()
+	
+	var $alt : Collection
+	$alt:=New collection:C1472()
+	var $num_in; $num_out : Integer
+	This:C1470.ignore:=New collection:C1472()
+	For each ($name; $full_class_list)
+		If ($class_list.indexOf($name)<0)  // class not in the hier we want to see?
+			This:C1470.ignore.push($name)
+			$num_out+=1
+		Else 
+			$alt.push($name)
+			$num_in+=1
+		End if 
+	End for each 
+	
 	
 Function formats()->$formats : Collection
 	/// Return the list of supported format 
